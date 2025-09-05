@@ -1,5 +1,4 @@
 // context/staking.js
-import { ethers } from "ethers";
 import toast from "react-hot-toast";
 import {
   loadStakingContract,
@@ -19,15 +18,23 @@ const err = (m) => toast.error(m, { duration: 2000 });
 
 // ---- Utility functions ----
 export const safeBN = (val) => {
-  if (!val) return "0";
-  if (typeof val.toString === "function") return val.toString();
-  return String(val);
+  if (val === undefined || val === null) return "0";
+  try {
+    // BigInt and ethers v6 return primitives that have toString()
+    return typeof val.toString === "function" ? val.toString() : String(val);
+  } catch {
+    return String(val);
+  }
 };
 
 export const safeNum = (val) => {
-  if (!val) return 0;
-  if (typeof val.toNumber === "function") return val.toNumber();
-  return Number(val);
+  if (val === undefined || val === null) return 0;
+  try {
+    // for BigInt or numeric types
+    return typeof val === "bigint" ? Number(val) : Number(val);
+  } catch {
+    return 0;
+  }
 };
 
 const tsToReadable = (seconds) => {
@@ -47,26 +54,29 @@ export async function CONTRACT_DATA(address) {
   try {
     const staking = await loadStakingContract();
 
-    // owner & address
+    // owner & address (ethers v6 contract target)
     const [contractOwner, contractAddress] = await Promise.all([
       staking.owner(),
-      Promise.resolve(staking.address),
+      Promise.resolve(staking.target ?? staking.address ?? null),
     ]);
 
     // notifications
     const notificationsRaw = await staking.getNotifications();
     const notifications = await Promise.all(
-      notificationsRaw.map(async ({ poolID, amount, user, typeOf, timeStamp }) => ({
-        poolID: poolID.toNumber(),
-        amount: toEth(amount),
-        user,
-        typeOf,
-        timeStamp: tsToReadable(timeStamp),
-      }))
+      (notificationsRaw || []).map(
+        async ({ poolID, amount, user, typeOf, timeStamp }) => ({
+          poolID: Number(poolID),
+          amount: toEth(amount),
+          user,
+          typeOf,
+          timeStamp: tsToReadable(timeStamp),
+        })
+      )
     );
 
     // pools
-    const poolsCount = (await staking.poolCount()).toNumber();
+    const poolsCountRaw = await staking.poolCount();
+    const poolsCount = Number(poolsCountRaw);
     const poolInfoArray = [];
     for (let i = 0; i < poolsCount; i++) {
       const p = await staking.poolInfo(i);
@@ -86,12 +96,12 @@ export async function CONTRACT_DATA(address) {
         lockDays: safeBN(p.lockDays),
 
         // user
-        amount: toEth(safeBN(pending.amount), depositTokenInfo.decimals),
-        userReward: toEth(safeBN(pending.reward), rewardTokenInfo.decimals),
+        amount: toEth(safeBN(pending?.amount ?? 0), depositTokenInfo.decimals),
+        userReward: toEth(safeBN(pending?.reward ?? 0), rewardTokenInfo.decimals),
 
         // timestamps
-        lockUntil: tsToReadable(safeNum(pending.lockUntil)),
-        lastRewardAt: tsToReadable(safeNum(pending.lastRewardAt)),
+        lockUntil: pending?.lockUntil ? tsToReadable(safeNum(pending.lockUntil)) : "N/A",
+        lastRewardAt: pending?.lastRewardAt ? tsToReadable(safeNum(pending.lastRewardAt)) : "N/A",
       };
 
       poolInfoArray.push(pool);
@@ -117,7 +127,7 @@ export async function CONTRACT_DATA(address) {
         Number(depositToken.contractTokenBalance) - Number(totalDepositAmount || 0),
     };
   } catch (e) {
-    console.log(e);
+    console.error("CONTRACT_DATA error:", e);
     return parseError(e);
   }
 }
@@ -133,10 +143,11 @@ export async function deposit(poolID, amountHuman, userAddress) {
     const decimals = await erc20.decimals();
     const amount = toWei(amountHuman, decimals);
 
-    const allowance = await erc20.allowance(userAddress, staking.address);
-    if (allowance.lt(amount)) {
+    const allowance = await erc20.allowance(userAddress, staking.target ?? staking.address);
+    // allowance and amount are BigInt in v6 — use numeric comparison
+    if (allowance < amount) {
       ok("approving token ..");
-      const txA = await erc20.approve(staking.address, amount);
+      const txA = await erc20.approve(staking.target ?? staking.address, amount);
       await txA.wait();
     }
 
@@ -147,6 +158,8 @@ export async function deposit(poolID, amountHuman, userAddress) {
     return r;
   } catch (e) {
     err(parseError(e));
+    // rethrow optional if caller expects promise rejection
+    // throw e;
   }
 }
 
@@ -263,20 +276,21 @@ export async function GET_USER_INFO(poolID, user) {
   try {
     const staking = await loadStakingContract();
 
+    // prefer dedicated userInfo if available
     if (staking.userInfo) {
       const u = await staking.userInfo(Number(poolID), user);
       return {
         amount: u?.amount?.toString?.() ?? "0",
-        lastRewardAt: u?.lastRewardAt?.toNumber?.() ?? 0,
-        lockUntil: u?.lockUntil?.toNumber?.() ?? 0,
+        lastRewardAt: u?.lastRewardAt ? Number(u.lastRewardAt) : 0,
+        lockUntil: u?.lockUntil ? Number(u.lockUntil) : 0,
       };
     }
 
     const p = await staking.pendingReward(Number(poolID), user);
     return {
       amount: p?.amount?.toString?.() ?? "0",
-      lastRewardAt: p?.lastRewardAt?.toNumber?.() ?? 0,
-      lockUntil: p?.lockUntil?.toNumber?.() ?? 0,
+      lastRewardAt: p?.lastRewardAt ? Number(p.lastRewardAt) : 0,
+      lockUntil: p?.lockUntil ? Number(p.lockUntil) : 0,
     };
   } catch (e) {
     err(parseError(e));

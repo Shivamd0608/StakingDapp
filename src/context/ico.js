@@ -14,7 +14,6 @@ const err = (m) => toast.error(m, { duration: 2000 });
 
 // normalize details from contract
 async function readTokenDetails(ico) {
-  // robust: try both casings getTokenDetails / gettokenDetails
   let details;
   if (ico.getTokenDetails) details = await ico.getTokenDetails();
   else if (ico.gettokenDetails) details = await ico.gettokenDetails();
@@ -23,23 +22,21 @@ async function readTokenDetails(ico) {
   return details;
 }
 
-// used by UI to preload
+// preload ICO data
 export const LOAD_TOKEN_ICO = async () => {
   try {
     const ico = await loadTokenIcoContract();
 
     const [owner, soldTokensBN, details] = await Promise.all([
       ico.owner(),
-      ico.soldTokens ? ico.soldTokens() : Promise.resolve(ethers.constants.Zero),
+      ico.soldTokens ? ico.soldTokens() : 0n,
       readTokenDetails(ico),
     ]);
 
-    // prefer token address from ICO contract (dynamic)
     const tokenAddr =
       details.tokenAddress ||
       (ico.tokenAddress ? await ico.tokenAddress() : null);
 
-    // load token ERC20 via ICO's current token
     const tokenC = tokenAddr ? await getERC20(tokenAddr) : null;
     const tokenDecimals = tokenC ? await tokenC.decimals() : 18;
 
@@ -50,23 +47,24 @@ export const LOAD_TOKEN_ICO = async () => {
           symbol: details.symbol ?? (await tokenC.symbol()),
           decimals: tokenDecimals,
           Supply: toEth(details.supply ?? (await tokenC.totalSupply()), tokenDecimals),
-          balance: toEth(details.balance ?? (await tokenC.balanceOf(ico.address)), tokenDecimals),
+          balance: toEth(
+            details.balance ?? (await tokenC.balanceOf(ico.target ?? ico.address)),
+            tokenDecimals
+          ),
         }
       : null;
 
     return {
       owner: owner?.toLowerCase?.() || owner,
-      soldTokens: soldTokensBN?.toNumber?.() ?? 0,
+      soldTokens: Number(soldTokensBN),
       tokenPrice: toEth(details.tokenPrice, 18),
       token: tokenMeta,
     };
   } catch (e) {
-    console.log(e);
+    console.error(e);
     throw new Error(parseError(e));
   }
 };
-
-// --- Keep your original public actions (fixed math & gas) ---
 
 export const BUY_TOKEN = async (amountHuman) => {
   try {
@@ -75,16 +73,12 @@ export const BUY_TOKEN = async (amountHuman) => {
 
     const details = await readTokenDetails(ico);
 
-    // price math in BigNumber (no double conversion)
-    const tokenPriceWei = details.tokenPrice; // BN in wei per token
-    const amountBN = ethers.BigNumber.from(amountHuman.toString());
-    const totalCostWei = tokenPriceWei.mul(amountBN);
+    const tokenPriceWei = details.tokenPrice; // BigInt
+    const amountBN = BigInt(amountHuman);
+    const totalCostWei = tokenPriceWei * amountBN;
 
     const gas = await ico.estimateGas.buyToken(amountBN, { value: totalCostWei });
-    const tx = await ico.buyToken(amountBN, {
-      value: totalCostWei,
-      gasLimit: gas,
-    });
+    const tx = await ico.buyToken(amountBN, { value: totalCostWei, gasLimit: gas });
     const r = await tx.wait();
     ok("Transaction successfully completed");
     return r;
@@ -100,7 +94,6 @@ export const TOKEN_WITHDRAW = async () => {
     const ico = await loadTokenIcoContract();
     const details = await readTokenDetails(ico);
 
-    // sanity: check available token balance in the ICO
     const tokenAddr =
       details.tokenAddress ||
       (ico.tokenAddress ? await ico.tokenAddress() : null);
@@ -108,8 +101,8 @@ export const TOKEN_WITHDRAW = async () => {
     if (!tokenAddr) return err("token address not set");
 
     const tokenC = await getERC20(tokenAddr);
-    const bal = await tokenC.balanceOf(ico.address);
-    if (bal.lte(0)) return err("token balance is lower than expected");
+    const bal = await tokenC.balanceOf(ico.target ?? ico.address);
+    if (bal <= 0n) return err("token balance is lower than expected");
 
     const gas = await ico.estimateGas.withdrawAllTokens();
     const tx = await ico.withdrawAllTokens({ gasLimit: gas });
@@ -141,7 +134,7 @@ export const UPDATE_TOKEN_PRICE = async (priceInEth) => {
   try {
     if (priceInEth == null) return err("DATA is missing");
     const ico = await loadTokenIcoContract();
-    const priceWei = ethers.utils.parseUnits(priceInEth.toString(), "ether");
+    const priceWei = ethers.parseUnits(priceInEth.toString(), "ether");
     const gas = await ico.estimateGas.updateTokenSalePrice(priceWei);
     const tx = await ico.updateTokenSalePrice(priceWei, { gasLimit: gas });
     const r = await tx.wait();

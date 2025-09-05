@@ -1,6 +1,11 @@
 // context/index.js
-// re-export helpers and keep your original function names so UI doesn't break
+import { ethers } from "ethers";
+import CustomTokenABI from "../abi/ERC20.json";
+import { loadStakingContract } from "./constants";
 
+// ---------------------
+// Re-exports for UI compatibility
+// ---------------------
 export {
   STAKING_DAPP_ADDRESS,
   DEPOSIT_TOKEN,
@@ -18,27 +23,26 @@ export {
   createPool,
   modifyPool,
   sweep,
-  EMERGENCY_WITHDRAW,   // NEW
-  GET_USER_INFO,        // NEW
+  EMERGENCY_WITHDRAW,
+  GET_USER_INFO,
 } from "./staking";
 
 export {
   transferToken,
   addTokenMetaMask,
-  ERC20_BALANCE_OF,     // NEW
-  ERC20_ALLOWANCE,      // NEW
-  ERC20_APPROVE,        // NEW
-  loadERC20Info,        // NEW
+  ERC20_BALANCE_OF,
+  ERC20_ALLOWANCE,
+  ERC20_APPROVE,
+  loadERC20Info,
 } from "./erc20";
 
 export {
-  LOAD_TOKEN_ICO,       // fixed & improved
+  LOAD_TOKEN_ICO,
   BUY_TOKEN,
   TOKEN_WITHDRAW,
   UPDATE_TOKEN,
   UPDATE_TOKEN_PRICE,
 } from "./ico";
-
 
 // ---------------------
 // ADMIN FUNCTIONS
@@ -47,8 +51,8 @@ export {
 // Approve reward token for Staking Contract (admin must call this before fundRewards)
 export const approveRewardToken = async (rewardTokenAddress, amount) => {
   try {
-    const provider = new ethers.providers.Web3Provider(window.ethereum);
-    const signer = provider.getSigner();
+    const provider = new ethers.BrowserProvider(window.ethereum);
+    const signer = await provider.getSigner();
 
     const rewardToken = new ethers.Contract(
       rewardTokenAddress,
@@ -57,8 +61,8 @@ export const approveRewardToken = async (rewardTokenAddress, amount) => {
     );
 
     const tx = await rewardToken.approve(
-      process.env.NEXT_PUBLIC_STAKING_DAPP, // staking contract address
-      ethers.utils.parseUnits(amount.toString(), 18)
+      import.meta.env.VITE_STAKING_DAPP, // staking contract address
+      ethers.parseUnits(amount.toString(), 18)
     );
 
     await tx.wait();
@@ -73,10 +77,10 @@ export const approveRewardToken = async (rewardTokenAddress, amount) => {
 // Fund rewards into Staking contract
 export const fundRewards = async (pid, amount) => {
   try {
-    const staking = await contract(); // your staking contract helper
+    const staking = await loadStakingContract();
     const tx = await staking.fundRewards(
       pid,
-      ethers.utils.parseUnits(amount.toString(), 18)
+      ethers.parseUnits(amount.toString(), 18)
     );
 
     await tx.wait();

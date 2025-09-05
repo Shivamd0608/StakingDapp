@@ -1,15 +1,15 @@
 // context/constants.js
-import { ethers } from "ethers";
-import StakingDappABI from "./StakingDapp.json";
-import TokenICO from "./TokenICO.json";
-import CustomTokenABI from "./ERC20.json";
+import { ethers, BrowserProvider, formatUnits, parseUnits } from "ethers";
+import StakingDappABI from "../abi/StakingDapp.json";
+import TokenICO from "../abi/TokenICO.json";
+import CustomTokenABI from "../abi/ERC20.json";
 
-// ENV
-export const STAKING_DAPP_ADDRESS = process.env.NEXT_PUBLIC_STAKING_DAPP;
-export const TOKEN_ICO_ADDRESS = process.env.NEXT_PUBLIC_TOKEN_ICO;
-export const DEPOSIT_TOKEN = process.env.NEXT_PUBLIC_DEPOSIT_TOKEN;
-export const REWARD_TOKEN = process.env.NEXT_PUBLIC_REWARD_TOKEN;
-export const TOKEN_LOGO = process.env.NEXT_PUBLIC_TOKEN_LOGO;
+// ---------- ENV ----------
+export const STAKING_DAPP_ADDRESS = import.meta.env.VITE_STAKING_DAPP;
+export const TOKEN_ICO_ADDRESS   = import.meta.env.VITE_TOKEN_ICO;
+export const DEPOSIT_TOKEN       = import.meta.env.VITE_DEPOSIT_TOKEN;
+export const REWARD_TOKEN        = import.meta.env.VITE_REWARD_TOKEN;
+export const TOKEN_LOGO          = import.meta.env.VITE_TOKEN_LOGO;
 
 // ---------- helpers ----------
 export function ensureEthereum() {
@@ -18,26 +18,28 @@ export function ensureEthereum() {
   }
 }
 
-export function provider() {
+// Return a fresh provider
+export function getProvider() {
   ensureEthereum();
-  return new ethers.providers.Web3Provider(window.ethereum);
+  return new BrowserProvider(window.ethereum);
 }
 
-export async function signer() {
-  const p = provider();
-  return p.getSigner();
+// Return a signer (wallet connection must be active)
+export async function getSigner() {
+  const provider = getProvider();
+  return await provider.getSigner();
 }
 
 export function toEth(amount, decimals = 18) {
   try {
-    return ethers.utils.formatUnits(amount, decimals).toString();
+    return formatUnits(amount, decimals).toString();
   } catch {
     return "0";
   }
 }
 
 export function toWei(amount, decimals = 18) {
-  return ethers.utils.parseUnits(amount?.toString() || "0", decimals);
+  return parseUnits(amount?.toString() || "0", decimals);
 }
 
 export function parseError(e) {
@@ -51,17 +53,17 @@ export function parseError(e) {
 
 // ---------- generic contract loaders ----------
 export async function loadStakingContract() {
-  const s = await signer();
+  const s = await getSigner();
   return new ethers.Contract(STAKING_DAPP_ADDRESS, StakingDappABI.abi, s);
 }
 
 export async function loadTokenIcoContract() {
-  const s = await signer();
+  const s = await getSigner();
   return new ethers.Contract(TOKEN_ICO_ADDRESS, TokenICO.abi, s);
 }
 
 export async function getERC20(address) {
-  const s = await signer();
+  const s = await getSigner();
   return new ethers.Contract(address, CustomTokenABI.abi, s);
 }
 
@@ -76,17 +78,17 @@ export async function ERC20Rich(address, userAddress) {
 
   const [totalSupplyBN, userBalBN, stakingBalBN] = await Promise.all([
     c.totalSupply(),
-    userAddress ? c.balanceOf(userAddress) : Promise.resolve(ethers.constants.Zero),
+    userAddress ? c.balanceOf(userAddress) : Promise.resolve(0n),
     STAKING_DAPP_ADDRESS
       ? c.balanceOf(STAKING_DAPP_ADDRESS)
-      : Promise.resolve(ethers.constants.Zero),
+      : Promise.resolve(0n),
   ]);
 
   return {
     name,
     symbol,
     decimals,
-    address: c.address,
+    address: c.target, // ethers v6 uses `target` instead of `address`
     totalSupply: toEth(totalSupplyBN, decimals),
     balance: toEth(userBalBN, decimals),
     contractTokenBalance: toEth(stakingBalBN, decimals),

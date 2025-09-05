@@ -17,13 +17,13 @@ export async function loadERC20Info(address, userAddress) {
   return ERC20Rich(address, userAddress);
 }
 
-// ---- wrappers you were using implicitly or missing ----
+// ---- wrappers ----
 export async function ERC20_BALANCE_OF(tokenAddress, account) {
   try {
     const c = await getERC20(tokenAddress);
     const decimals = await c.decimals();
     const bal = await c.balanceOf(account);
-    return ethers.utils.formatUnits(bal, decimals);
+    return ethers.formatUnits(bal, decimals);
   } catch (e) {
     throw new Error(parseError(e));
   }
@@ -34,7 +34,7 @@ export async function ERC20_ALLOWANCE(tokenAddress, owner, spender) {
     const c = await getERC20(tokenAddress);
     const decimals = await c.decimals();
     const a = await c.allowance(owner, spender);
-    return ethers.utils.formatUnits(a, decimals);
+    return ethers.formatUnits(a, decimals);
   } catch (e) {
     throw new Error(parseError(e));
   }
@@ -56,7 +56,6 @@ export async function ERC20_APPROVE(tokenAddress, spender, amountHuman) {
   }
 }
 
-// kept your transferToken API but made decimals-safe
 export async function transferToken(tokenAddress, amountHuman, toAddress) {
   try {
     ok("calling contract token..");
@@ -73,14 +72,14 @@ export async function transferToken(tokenAddress, amountHuman, toAddress) {
   }
 }
 
-// Add to MetaMask – expects a *contract instance loader*, but we’ll keep your signature for compatibility
+// Add to MetaMask
 export const addTokenMetaMask = async (loadTokenContractFn) => {
   try {
     if (!window.ethereum) return err("MetaMask is not installed ");
 
-    const contract = await loadTokenContractFn(); // your original pattern
+    const contract = await loadTokenContractFn();
     const decimals = await contract.decimals();
-    const tokenAddress = contract.address;
+    const tokenAddress = contract.target ?? contract.address;
     const symbol = await contract.symbol();
     const image = TOKEN_LOGO;
 
