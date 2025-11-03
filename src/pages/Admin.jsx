@@ -1,79 +1,94 @@
-// src/pages/Admin.jsx
-import React, { useEffect, useState } from "react";
-import { CONTRACT_DATA, approveRewardToken, fundRewards } from "../context";
-import { useAccount } from "wagmi";
-import toast from "react-hot-toast";
+import React, { useState } from 'react';
 
-export default function Admin() {
-  const { address } = useAccount();
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(false);
+const Admin = () => {
+  const [depositToken, setDepositToken] = useState('');
+  const [rewardToken, setRewardToken] = useState('');
+  const [apy, setApy] = useState('');
+  const [lockDays, setLockDays] = useState('');
+  const [poolId, setPoolId] = useState('');
+  const [fundAmount, setFundAmount] = useState('');
+  const [newApy, setNewApy] = useState('');
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      const res = await CONTRACT_DATA(address);
-      setData(res);
-    } catch (e) {
-      toast.error("Failed to load contract data");
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
+  const handleAddPool = () => {
+    // TODO: Implement add pool functionality
+    console.log('Adding pool:', { depositToken, rewardToken, apy, lockDays });
   };
 
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [address]);
-
-  const isOwner = data && address && data.contractOwner && data.contractOwner.toLowerCase() === address.toLowerCase();
-
-  const doApproveReward = async () => {
-    const tokenAddr = prompt("Reward token address:");
-    const amount = prompt("Amount to approve (human):", "1000");
-    if (!tokenAddr || !amount) return;
-    try {
-      await approveRewardToken(tokenAddr, amount);
-      toast.success("Approved");
-    } catch (e) {
-      toast.error("Approve failed");
-    }
+  const handleFundRewards = () => {
+    // TODO: Implement fund rewards functionality
+    console.log('Funding rewards for pool', poolId, 'with amount:', fundAmount);
   };
 
-  const doFundRewards = async () => {
-    const pid = prompt("Pool ID:");
-    const amount = prompt("Amount to fund (human):", "1000");
-    if (!pid || !amount) return;
-    try {
-      await fundRewards(pid, amount);
-      toast.success("Rewards funded");
-    } catch (e) {
-      toast.error("Fund failed");
-    }
+  const handleModifyPool = () => {
+    // TODO: Implement modify pool functionality
+    console.log('Modifying APY for pool', poolId, 'to:', newApy);
   };
-
-  if (loading) return <div>Loading admin...</div>;
 
   return (
     <div>
-      <h1 className="text-2xl mb-4">Admin</h1>
-
-      {!isOwner && <div className="bg-amber-600 p-3 rounded-md mb-4">You are not contract owner. Admin controls are disabled.</div>}
-
-      <div className="grid md:grid-cols-2 gap-4">
-        <div className="bg-slate-800 rounded-md p-4">
-          <div className="text-sm text-slate-400">Owner</div>
-          <div className="font-mono">{data?.contractOwner ?? "—"}</div>
-        </div>
-
-        <div className="bg-slate-800 rounded-md p-4">
-          <div className="flex gap-2">
-            <button onClick={doApproveReward} disabled={!isOwner} className="px-3 py-2 bg-indigo-600 rounded-md disabled:opacity-50">Approve Reward Token</button>
-            <button onClick={doFundRewards} disabled={!isOwner} className="px-3 py-2 bg-slate-600 rounded-md disabled:opacity-50">Fund Rewards</button>
-          </div>
-        </div>
+      <h2>Admin Panel</h2>
+      <div>
+        <h3>Add Pool</h3>
+        <input
+          type="text"
+          placeholder="Deposit Token Address"
+          value={depositToken}
+          onChange={(e) => setDepositToken(e.target.value)}
+        />
+        <input
+          type="text"
+          placeholder="Reward Token Address"
+          value={rewardToken}
+          onChange={(e) => setRewardToken(e.target.value)}
+        />
+        <input
+          type="text"
+          placeholder="APY"
+          value={apy}
+          onChange={(e) => setApy(e.target.value)}
+        />
+        <input
+          type="text"
+          placeholder="Lock Days"
+          value={lockDays}
+          onChange={(e) => setLockDays(e.target.value)}
+        />
+        <button onClick={handleAddPool}>Add Pool</button>
+      </div>
+      <div>
+        <h3>Fund Rewards</h3>
+        <input
+          type="text"
+          placeholder="Pool ID"
+          value={poolId}
+          onChange={(e) => setPoolId(e.target.value)}
+        />
+        <input
+          type="text"
+          placeholder="Amount"
+          value={fundAmount}
+          onChange={(e) => setFundAmount(e.target.value)}
+        />
+        <button onClick={handleFundRewards}>Fund Rewards</button>
+      </div>
+      <div>
+        <h3>Modify Pool APY</h3>
+        <input
+          type="text"
+          placeholder="Pool ID"
+          value={poolId}
+          onChange={(e) => setPoolId(e.target.value)}
+        />
+        <input
+          type="text"
+          placeholder="New APY"
+          value={newApy}
+          onChange={(e) => setNewApy(e.target.value)}
+        />
+        <button onClick={handleModifyPool}>Modify Pool</button>
       </div>
     </div>
   );
-}
+};
+
+export default Admin;

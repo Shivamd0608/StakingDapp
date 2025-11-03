@@ -1,8 +1,8 @@
 // context/constants.js
 import { ethers, BrowserProvider, formatUnits, parseUnits } from "ethers";
-import StakingDappABI from "../abi/StakingDapp.json";
-import TokenICO from "../abi/TokenICO.json";
-import CustomTokenABI from "../abi/ERC20.json";
+import StakingDappABI from "../abi/StakingDapp.js";
+import TokenICO from "../abi/TokenICO.js";
+import CustomTokenABI from "../abi/ERC20.js";
 
 // ---------- ENV ----------
 export const STAKING_DAPP_ADDRESS = import.meta.env.VITE_STAKING_DAPP;
@@ -54,7 +54,7 @@ export function parseError(e) {
 // ---------- generic contract loaders ----------
 export async function loadStakingContract() {
   const s = await getSigner();
-  return new ethers.Contract(STAKING_DAPP_ADDRESS, StakingDappABI.abi, s);
+  return new ethers.Contract(STAKING_DAPP_ADDRESS, StakingDappABI, s);
 }
 
 export async function loadTokenIcoContract() {

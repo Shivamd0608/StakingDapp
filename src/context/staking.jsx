@@ -61,17 +61,15 @@ export async function CONTRACT_DATA(address) {
     ]);
 
     // notifications
-    const notificationsRaw = await staking.getNotifications();
+    const notificationsRaw = await staking.queryFilter("Notification");
     const notifications = await Promise.all(
-      (notificationsRaw || []).map(
-        async ({ poolID, amount, user, typeOf, timeStamp }) => ({
-          poolID: Number(poolID),
-          amount: toEth(amount),
-          user,
-          typeOf,
-          timeStamp: tsToReadable(timeStamp),
-        })
-      )
+      (notificationsRaw || []).map(async (event) => ({
+        poolID: Number(event.args.poolID),
+        amount: toEth(event.args.amount),
+        user: event.args.user,
+        typeOf: event.args.typeOf,
+        timeStamp: tsToReadable(event.args.timestamp),
+      }))
     );
 
     // pools
@@ -259,19 +257,7 @@ export async function sweep(tokenAddress, amountHuman) {
   }
 }
 
-export async function EMERGENCY_WITHDRAW(poolID) {
-  try {
-    ok("emergency withdraw ...");
-    const staking = await loadStakingContract();
-    const gas = await staking.estimateGas.emergencyWithdraw(Number(poolID));
-    const tx = await staking.emergencyWithdraw(Number(poolID), { gasLimit: gas });
-    const r = await tx.wait();
-    ok("Emergency withdraw completed");
-    return r;
-  } catch (e) {
-    err(parseError(e));
-  }
-}
+
 export async function GET_USER_INFO(poolID, user) {
   try {
     const staking = await loadStakingContract();
