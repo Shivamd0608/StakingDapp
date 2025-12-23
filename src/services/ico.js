@@ -5,73 +5,118 @@ import TokenICOABI from '../abi/TokenICO';
 import ERC20ABI from '../abi/ERC20';
 import { ICO_CONTRACT_ADDRESS, TOKEN_ADDRESS } from '../utils/constants';
 
-export const buyTokens = async (signer, ethAmount) => {
+// Buy tokens from ICO
+export const buyTokens = async (signer, tokenAmount) => {
   try {
     const icoContract = new ethers.Contract(ICO_CONTRACT_ADDRESS, TokenICOABI, signer);
-    const value = ethers.utils.parseEther(ethAmount.toString());
-    const tx = await icoContract.buyTokens({ value });
+    
+    // Get token price to calculate ETH needed
+    const tokenPrice = await icoContract.tokenSalePrice();
+    const ethNeeded = BigInt(tokenAmount) * tokenPrice;
+    
+    const tx = await icoContract.buyToken(tokenAmount, { value: ethNeeded });
+    toast.info('Purchase transaction sent...');
     await tx.wait();
     toast.success('Tokens purchased successfully!');
+    return true;
   } catch (error) {
-    toast.error('Error purchasing tokens: ' + error.message);
+    console.error('Buy tokens error:', error);
+    toast.error('Error purchasing tokens: ' + (error.reason || error.message));
+    return false;
   }
 };
 
-export const getUserTokenBalance = async (provider, account) => {
+// Get user token balance
+export const getUserTokenBalance = async (provider, tokenAddress, account) => {
   try {
-    const tokenContract = new ethers.Contract(TOKEN_ADDRESS, ERC20ABI, provider);
+    const tokenContract = new ethers.Contract(tokenAddress, ERC20ABI, provider);
     const balance = await tokenContract.balanceOf(account);
-    const decimals = await tokenContract.decimals();
-    return ethers.utils.formatUnits(balance, decimals);
+    return balance;
   } catch (error) {
-    toast.error('Error fetching token balance: ' + error.message);
-    return '0';
+    console.error('Get balance error:', error);
+    return BigInt(0);
   }
 };
 
+// Get ICO token details
 export const getICOInfo = async (provider) => {
   try {
     const icoContract = new ethers.Contract(ICO_CONTRACT_ADDRESS, TokenICOABI, provider);
-    const tokenPrice = await icoContract.tokenPrice();
-    const tokensSold = await icoContract.tokensSold();
-    const startTime = await icoContract.startTime();
-    const endTime = await icoContract.endTime();
-    return { tokenPrice, tokensSold, startTime, endTime };
+    const tokenDetails = await icoContract.gettokenDetails();
+    const soldTokens = await icoContract.soldTokens();
+    const owner = await icoContract.owner();
+    
+    return {
+      name: tokenDetails[0],
+      symbol: tokenDetails[1],
+      balance: tokenDetails[2],
+      supply: tokenDetails[3],
+      tokenPrice: tokenDetails[4],
+      tokenAddress: tokenDetails[5],
+      soldTokens,
+      owner
+    };
   } catch (error) {
-    toast.error('Error fetching ICO info: ' + error.message);
-    return {};
+    console.error('Get ICO info error:', error);
+    return null;
   }
 };
 
-export const startICO = async (signer) => {
+// Admin: Update token address
+export const updateToken = async (signer, tokenAddress) => {
   try {
     const icoContract = new ethers.Contract(ICO_CONTRACT_ADDRESS, TokenICOABI, signer);
-    const tx = await icoContract.startSale();
+    const tx = await icoContract.updateToken(tokenAddress);
+    toast.info('Updating token...');
     await tx.wait();
-    toast.success('ICO started successfully!');
+    toast.success('Token updated successfully!');
+    return true;
   } catch (error) {
-    toast.error('Error starting ICO: ' + error.message);
+    console.error('Update token error:', error);
+    toast.error('Error updating token: ' + (error.reason || error.message));
+    return false;
   }
 };
 
-export const stopICO = async (signer) => {
+// Admin: Update token sale price
+export const updateTokenSalePrice = async (signer, price) => {
   try {
     const icoContract = new ethers.Contract(ICO_CONTRACT_ADDRESS, TokenICOABI, signer);
-    const tx = await icoContract.stopSale();
+    const tx = await icoContract.updateTokenSalePrice(price);
+    toast.info('Updating price...');
     await tx.wait();
-    toast.success('ICO stopped successfully!');
+    toast.success('Token price updated successfully!');
+    return true;
   } catch (error) {
-    toast.error('Error stopping ICO: ' + error.message);
+    console.error('Update price error:', error);
+    toast.error('Error updating price: ' + (error.reason || error.message));
+    return false;
   }
 };
 
-export const withdrawICOFunds = async (signer) => {
+// Admin: Withdraw all tokens
+export const withdrawAllTokens = async (signer) => {
   try {
     const icoContract = new ethers.Contract(ICO_CONTRACT_ADDRESS, TokenICOABI, signer);
-    const tx = await icoContract.withdrawFunds();
+    const tx = await icoContract.withdrawAlltokens();
+    toast.info('Withdrawing tokens...');
     await tx.wait();
-    toast.success('Funds withdrawn successfully!');
+    toast.success('Tokens withdrawn successfully!');
+    return true;
   } catch (error) {
-    toast.error('Error withdrawing funds: ' + error.message);
+    console.error('Withdraw tokens error:', error);
+    toast.error('Error withdrawing tokens: ' + (error.reason || error.message));
+    return false;
+  }
+};
+
+// Get ICO contract owner
+export const getICOOwner = async (provider) => {
+  try {
+    const icoContract = new ethers.Contract(ICO_CONTRACT_ADDRESS, TokenICOABI, provider);
+    return await icoContract.owner();
+  } catch (error) {
+    console.error('Get ICO owner error:', error);
+    return null;
   }
 };

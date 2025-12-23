@@ -1,53 +1,356 @@
-# 🌐 Staking DApp — Full Web3 Project
+# 🐉 StakingDapp — Full Web3 DeFi Application
 
-A complete decentralized finance (DeFi) application built on Ethereum that enables token sales, staking, and reward distribution through smart contracts.
+A complete decentralized finance (DeFi) application built on Ethereum featuring Token ICO and Multi-Pool Staking with reward distribution through smart contracts.
 
 ---
 
 ## 📘 Overview
 
-The **Staking DApp** is a decentralized application that provides a complete DeFi workflow:
+The **StakingDapp** is a decentralized application that provides a complete DeFi workflow:
 
-- 🪙 **ICO (Initial Coin Offering)** — Purchase custom ERC20 tokens with ETH
-- 💎 **Token Staking** — Stake tokens to earn rewards over time
-- 📊 **Real-time Analytics** — View staking info, rewards, and liquidity metrics
-- 🔐 **Admin Dashboard** — Manage staking parameters and liquidity pools
+- 🪙 **Token ICO** — Purchase DragonballCoin (DBC) tokens with ETH
+- 💎 **Multi-Pool Staking** — Stake tokens in multiple pools with different APYs
+- 📊 **Real-time Dashboard** — View staking info, pending rewards, and pool metrics
+- 🔐 **Admin Panel** — Create pools, fund rewards, and manage the protocol
 
-Built with React, Ethers.js, and Solidity smart contracts deployed on Ethereum-compatible networks.
-
----
-
-## ✨ Features
-
-### For Users
-- ✅ Connect wallet via MetaMask or WalletConnect
-- ✅ Purchase ERC20 tokens through ICO
-- ✅ Stake tokens to earn passive rewards
-- ✅ Unstake anytime with automatic reward distribution
-- ✅ View personal staking dashboard (amount, rewards, duration)
-- ✅ Monitor global liquidity pool metrics
-
-### For Admins
-- ⚙️ Update reward rates dynamically
-- ⚙️ Pause/resume staking operations
-- ⚙️ End ICO and withdraw raised funds
-- ⚙️ Manage liquidity pools (add/remove tokens)
+Built with **React + Vite**, **Ethers.js v6**, and **Solidity** smart contracts.
 
 ---
 
-## 🏗️ Architecture
+## 🚀 Quick Start
 
-### Smart Contracts
+### Prerequisites
+- Node.js v18+ 
+- MetaMask browser extension
+- Some Sepolia testnet ETH (get from [Sepolia Faucet](https://sepoliafaucet.com/))
 
-| Contract | Description | Key Functions |
-|----------|-------------|---------------|
-| **ERC20.sol** | Custom ERC20 token implementation | `transfer`, `approve`, `balanceOf` |
-| **TokenICO.sol** | Handles token sale and distribution | `buyTokens`, `endICO`, `withdraw` |
-| **StakingDapp.sol** | Manages staking and reward calculations | `stakeTokens`, `unstakeTokens`, `claimRewards` |
+### Installation
 
-**Deployment:** Contracts are deployed on EVM-compatible testnets (Sepolia, Polygon Mumbai, etc.)
+```bash
+# Clone the repository
+cd StakingDapp
 
-### Frontend Stack
+# Install dependencies
+npm install
+
+# Copy environment variables
+cp .env.example .env
+
+# Edit .env with your contract addresses (see Deployment section)
+
+# Start development server
+npm run dev
+```
+
+The app will be available at `http://localhost:5173`
+
+---
+
+## 📁 Project Structure
+
+```
+StakingDapp/
+├── src/
+│   ├── abi/                    # Contract ABIs
+│   │   ├── ERC20.js           # ERC20 token ABI
+│   │   ├── StakingDapp.js     # Staking contract ABI
+│   │   └── TokenICO.js        # ICO contract ABI
+│   ├── components/
+│   │   └── common/
+│   │       └── WalletButton.jsx
+│   ├── context/
+│   │   └── EthersContext.jsx   # Web3 provider context
+│   ├── hooks/
+│   │   └── useEthers.js        # Ethers.js hook
+│   ├── pages/
+│   │   ├── ICOPage.jsx         # Token ICO page
+│   │   ├── StakingPage.jsx     # Staking pools page
+│   │   └── NotFound.jsx
+│   ├── services/
+│   │   ├── ico.js              # ICO contract interactions
+│   │   └── staking.js          # Staking contract interactions
+│   ├── utils/
+│   │   └── constants.js        # Contract addresses & config
+│   ├── App.jsx                 # Main app component
+│   ├── main.jsx                # Entry point
+│   └── index.css               # Global styles
+├── contract/
+│   ├── ERC20.sol               # DragonballCoin token
+│   ├── TokenICO.sol            # ICO contract
+│   └── StakingDapp.sol         # Staking contract
+├── .env.example                # Environment template
+├── package.json
+└── vite.config.js
+```
+
+---
+
+## 🔧 Environment Configuration
+
+Create a `.env` file in the root directory:
+
+```env
+# Contract Addresses (after deployment)
+VITE_STAKING_DAPP=0xYourStakingDappContractAddress
+VITE_TOKEN_ICO=0xYourTokenICOContractAddress  
+VITE_DEPOSIT_TOKEN=0xYourERC20TokenAddress
+
+# Network Configuration
+VITE_CHAIN_ID=11155111
+VITE_RPC_URL=https://eth-sepolia.g.alchemy.com/v2/YOUR_API_KEY
+```
+
+---
+
+## 📜 Smart Contracts
+
+### 1. DragonballCoin (ERC20.sol)
+A standard ERC20 token with minting and burning capabilities.
+
+```solidity
+// Key functions
+function mint(address to, uint256 amount) external onlyOwner
+function burn(uint256 amount) external
+function transfer(address to, uint256 value) returns (bool)
+function approve(address spender, uint256 value) returns (bool)
+```
+
+### 2. TokenICO (TokenICO.sol)
+Handles token sales where users can buy tokens with ETH.
+
+```solidity
+// Key functions
+function buyToken(uint256 _tokenAmount) public payable  // Buy tokens
+function updateToken(address _tokenAddress) public      // Set token (owner)
+function updateTokenSalePrice(uint256 _price) public    // Set price (owner)
+function withdrawAlltokens() public                     // Withdraw unsold (owner)
+function gettokenDetails() public view returns (...)    // Get ICO info
+```
+
+### 3. StakingDapp (StakingDapp.sol)
+Multi-pool staking with configurable APY and lock periods.
+
+```solidity
+// Pool Structure
+struct PoolInfo {
+    IERC20 depositToken;      // Token to stake
+    IERC20 rewardToken;       // Reward token
+    uint256 depositedAmount;  // Total staked
+    uint256 apy;              // Annual percentage yield
+    uint256 lockDays;         // Lock period in days
+    uint256 rewardFund;       // Available rewards
+}
+
+// User Structure
+struct UserInfo {
+    uint256 amount;           // Staked amount
+    uint256 lastRewardAt;     // Last reward timestamp
+    uint256 lockUntil;        // Unlock timestamp
+}
+
+// Key functions
+function addPool(IERC20 _depositToken, IERC20 _rewardToken, uint256 _apy, uint256 _lockDays)
+function deposit(uint256 _pid, uint256 _amount)
+function withdraw(uint256 _pid, uint256 _amount)
+function claimReward(uint256 _pid)
+function pendingReward(uint256 _pid, address _user) view returns (uint256)
+function fundRewards(uint256 _pid, uint256 _amount)  // Owner only
+function modifyPool(uint256 _pid, uint256 _apy)      // Owner only
+```
+
+---
+
+## 🚢 Deployment Guide
+
+### Step 1: Deploy Contracts
+
+Using Remix IDE or Hardhat:
+
+1. **Deploy ERC20 Token (DragonballCoin)**
+   ```solidity
+   constructor(1000000) // 1 million initial supply
+   ```
+
+2. **Deploy TokenICO**
+   ```solidity
+   // After deployment:
+   updateToken(TOKEN_ADDRESS)
+   updateTokenSalePrice(1000000000000000) // 0.001 ETH per token
+   
+   // Transfer tokens to ICO contract for sale
+   token.transfer(ICO_ADDRESS, 100000 * 10**18)
+   ```
+
+3. **Deploy StakingDapp**
+   ```solidity
+   // After deployment, create a pool:
+   addPool(
+     TOKEN_ADDRESS,  // deposit token
+     TOKEN_ADDRESS,  // reward token (can be same)
+     20,             // 20% APY
+     30              // 30 day lock
+   )
+   
+   // Fund the reward pool:
+   token.approve(STAKING_ADDRESS, 10000 * 10**18)
+   fundRewards(0, 10000 * 10**18)
+   ```
+
+### Step 2: Update Environment
+
+After deploying, update your `.env` file with the contract addresses.
+
+### Step 3: Run the Frontend
+
+```bash
+npm run dev
+```
+
+---
+
+## 📱 Using the DApp
+
+### Connecting Wallet
+1. Click **"Connect Wallet"** in the top right
+2. Approve the MetaMask connection
+3. Make sure you're on the correct network (Sepolia)
+
+### ICO Page
+1. Navigate to the **ICO** tab
+2. View token details (name, symbol, price, available)
+3. Enter the number of tokens to buy
+4. Click **"Buy Tokens"** and confirm in MetaMask
+5. Your purchased tokens will appear in your balance
+
+### Staking Page
+1. Navigate to the **Staking** tab
+2. View available staking pools
+3. Click on a pool to select it
+4. Enter the amount you want to stake
+5. Click **"Approve"** first (one-time per token)
+6. Click **"Stake"** to deposit your tokens
+7. Wait for the lock period to end
+8. Click **"Claim Rewards"** to get your earned rewards
+9. Click **"Unstake"** to withdraw your staked tokens
+
+### Admin Functions (Contract Owner)
+
+**ICO Admin:**
+- Update token address
+- Update token sale price
+- Withdraw unsold tokens
+
+**Staking Admin:**
+- Create new staking pools
+- Fund reward pools with tokens
+- Modify pool APY
+
+---
+
+## 🛠️ Development
+
+### Available Scripts
+
+```bash
+# Start development server
+npm run dev
+
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
+
+# Run linter
+npm run lint
+```
+
+### Key Dependencies
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `ethers` | ^6.8.0 | Ethereum interactions |
+| `react` | ^18.2.0 | UI framework |
+| `react-router-dom` | ^7.9.5 | Routing |
+| `react-toastify` | ^9.1.3 | Notifications |
+| `vite` | ^4.4.9 | Build tool |
+
+---
+
+## ⚠️ Important Notes
+
+### Testing Mode
+The StakingDapp contract uses **60 seconds = 1 day** for testing purposes. For production:
+```solidity
+// Change in StakingDapp.sol:
+// Testing: 60 sec = 1 day
+uint256 daysPassed = (block.timestamp - user.lastRewardAt) / 60;
+
+// Production: 86400 sec = 1 day  
+uint256 daysPassed = (block.timestamp - user.lastRewardAt) / 86400;
+```
+
+### Security Considerations
+- Always test on testnet first
+- Use hardware wallets for admin operations
+- Audit contracts before mainnet deployment
+- Keep private keys secure
+
+---
+
+## 🔗 Networks Supported
+
+| Network | Chain ID | Status |
+|---------|----------|--------|
+| Sepolia Testnet | 11155111 | ✅ Recommended for testing |
+| Ethereum Mainnet | 1 | ⚠️ Requires audit |
+| Polygon | 137 | ✅ Compatible |
+
+---
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
+
+---
+
+## 📄 License
+
+MIT License - feel free to use this project for learning and development.
+
+---
+
+## 🆘 Troubleshooting
+
+### "Transaction Failed"
+- Check if you have enough ETH for gas
+- Check if you've approved the token spending
+- Make sure the lock period has ended (for unstaking)
+
+### "No Pools Available"  
+- The contract owner needs to create staking pools first
+- Check if you're connected to the correct network
+
+### "Connect Wallet Not Working"
+- Make sure MetaMask is installed
+- Try refreshing the page
+- Check if MetaMask is unlocked
+
+---
+
+## 📞 Support
+
+For issues and questions:
+- Open a GitHub issue
+- Check the smart contract on Etherscan for transaction history
+
+---
+
+**Happy Staking! 🚀**
+
 
 - **React.js** — Component-based UI framework
 - **Vite** — Fast build tool and dev server

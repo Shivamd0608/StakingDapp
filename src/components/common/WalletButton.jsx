@@ -1,18 +1,66 @@
 import React from 'react';
 import { useEthers } from '../../hooks/useEthers';
-import { formatAddress } from '../../utils/formatter';
+
+// Format address to show first and last few characters
+const formatAddress = (address) => {
+  if (!address) return '';
+  return `${address.slice(0, 6)}...${address.slice(-4)}`;
+};
 
 export default function WalletButton() {
-  const { account, isLoading, connectWallet, disconnectWallet } = useEthers();
+  const { account, isLoading, connectWallet, disconnectWallet, chainId } = useEthers();
+
+  // Get network name
+  const getNetworkName = () => {
+    switch (chainId) {
+      case 1n:
+      case 1:
+        return 'Mainnet';
+      case 11155111n:
+      case 11155111:
+        return 'Sepolia';
+      case 5n:
+      case 5:
+        return 'Goerli';
+      default:
+        return chainId ? `Chain ${chainId}` : '';
+    }
+  };
 
   if (account) {
     return (
-      <button
-        onClick={disconnectWallet}
-        className="px-4 py-2 font-bold text-white bg-red-500 rounded hover:bg-red-700"
-      >
-        {formatAddress(account)}
-      </button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        {chainId && (
+          <span 
+            style={{ 
+              padding: '0.5rem 0.75rem', 
+              background: 'var(--bg-card)', 
+              borderRadius: '0.5rem',
+              fontSize: '0.875rem',
+              color: 'var(--text-secondary)'
+            }}
+          >
+            {getNetworkName()}
+          </span>
+        )}
+        <button
+          onClick={disconnectWallet}
+          className="btn btn-outline"
+          style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '0.5rem'
+          }}
+        >
+          <span style={{ 
+            width: '8px', 
+            height: '8px', 
+            background: 'var(--success-color)', 
+            borderRadius: '50%' 
+          }} />
+          {formatAddress(account)}
+        </button>
+      </div>
     );
   }
 
@@ -20,9 +68,16 @@ export default function WalletButton() {
     <button
       onClick={connectWallet}
       disabled={isLoading}
-      className="px-4 py-2 font-bold text-white bg-blue-500 rounded hover:bg-blue-700 disabled:opacity-50"
+      className="btn btn-primary"
     >
-      {isLoading ? 'Connecting...' : 'Connect Wallet'}
+      {isLoading ? (
+        <>
+          <span className="spinner" style={{ width: '16px', height: '16px', marginRight: '0.5rem' }} />
+          Connecting...
+        </>
+      ) : (
+        '🦊 Connect Wallet'
+      )}
     </button>
   );
 }
